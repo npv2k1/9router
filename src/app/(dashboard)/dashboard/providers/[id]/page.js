@@ -302,14 +302,35 @@ export default function ProviderDetailPage() {
 
   const handleSaveApiKey = async (formData) => {
     try {
-      const res = await fetch("/api/providers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: providerId, ...formData }),
-      });
-      if (res.ok) {
+      if (formData.keys && Array.isArray(formData.keys)) {
+        const { keys, ...sharedData } = formData;
+        const failedKeys = [];
+        for (const key of keys) {
+          const res = await fetch("/api/providers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider: providerId, ...sharedData, name: key.name, apiKey: key.apiKey }),
+          });
+          if (!res.ok) {
+            failedKeys.push(key.name);
+          }
+        }
         await fetchConnections();
-        setShowAddApiKeyModal(false);
+        if (failedKeys.length === 0) {
+          setShowAddApiKeyModal(false);
+        } else {
+          console.log("Failed to save keys:", failedKeys);
+        }
+      } else {
+        const res = await fetch("/api/providers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider: providerId, ...formData }),
+        });
+        if (res.ok) {
+          await fetchConnections();
+          setShowAddApiKeyModal(false);
+        }
       }
     } catch (error) {
       console.log("Error saving connection:", error);
