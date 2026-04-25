@@ -433,56 +433,16 @@ export const PROVIDER_MODELS = {
     { id: "gemini-3-flash-preview", name: "Gemini 3 Flash Preview" },
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
   ],
-  "vertex-partner": [
-    { id: "deepseek-ai/deepseek-v3.2-maas", name: "DeepSeek V3.2 (Vertex)" },
-    { id: "qwen/qwen3-next-80b-a3b-thinking-maas", name: "Qwen3 Next 80B Thinking (Vertex)" },
-    { id: "qwen/qwen3-next-80b-a3b-instruct-maas", name: "Qwen3 Next 80B Instruct (Vertex)" },
-    { id: "zai-org/glm-5-maas", name: "GLM-5 (Vertex)" },
+   "vertex-partner": [
+    { id: "anthropic.claude-3-7-sonnet-20250219-v1:0", name: "Claude 3.7 Sonnet" },
+    { id: "anthropic.claude-sonnet-4-5-20250514-v1:0", name: "Claude 4.5 Sonnet" },
+    { id: "anthropic.claude-opus-4-5-20251101-v1:0", name: "Claude 4.5 Opus" },
+    { id: "meta.llama3-3-70b-instruct-v1:0", name: "Llama 3.3 70B" },
+    { id: "meta.llama4-maverick-17b-instruct-basic-v1:0", name: "Llama 4 Maverick" },
+    { id: "mistral.mistral-large-2407-v1:0", name: "Mistral Large 2" },
+    { id: "z.ai.glm-4-7-0111-v1:0", name: "GLM 4.7" },
   ],
-  "grok-web": [
-    { id: "grok-3", name: "Grok 3" },
-    { id: "grok-3-mini", name: "Grok 3 Mini (Thinking)" },
-    { id: "grok-3-thinking", name: "Grok 3 Thinking" },
-    { id: "grok-4", name: "Grok 4" },
-    { id: "grok-4-mini", name: "Grok 4 Mini (Thinking)" },
-    { id: "grok-4-thinking", name: "Grok 4 Thinking" },
-    { id: "grok-4-heavy", name: "Grok 4 Heavy (SuperGrok)" },
-    { id: "grok-4.1-mini", name: "Grok 4.1 Mini (Thinking)" },
-    { id: "grok-4.1-fast", name: "Grok 4.1 Fast" },
-    { id: "grok-4.1-expert", name: "Grok 4.1 Expert" },
-    { id: "grok-4.1-thinking", name: "Grok 4.1 Thinking" },
-    { id: "grok-4.2", name: "Grok 4.2 (4.20 Beta)" },
-  ],
-  "perplexity-web": [
-    { id: "pplx-auto", name: "Perplexity Auto (Free)" },
-    { id: "pplx-sonar", name: "Perplexity Sonar" },
-    { id: "pplx-gpt", name: "GPT-5.4 (via Perplexity)" },
-    { id: "pplx-gemini", name: "Gemini 3.1 Pro (via Perplexity)" },
-    { id: "pplx-sonnet", name: "Claude Sonnet 4.6 (via Perplexity)" },
-    { id: "pplx-opus", name: "Claude Opus 4.6 (via Perplexity)" },
-    { id: "pplx-nemotron", name: "Nemotron 3 Super (via Perplexity)" },
-  ],
-
-  // TTS entries are loaded from ttsModels.js via buildTtsProviderModels()
-  ...buildTtsProviderModels(),
-
-  // Image providers
-  nanobanana: [
-    { id: "nanobanana-flash", name: "NanoBanana Flash", type: "image" },
-    { id: "nanobanana-pro", name: "NanoBanana Pro", type: "image" },
-  ],
-  sdwebui: [
-    { id: "stable-diffusion-v1-5", name: "Stable Diffusion v1.5", type: "image" },
-    { id: "sdxl-base-1.0", name: "SDXL Base 1.0", type: "image" },
-  ],
-  comfyui: [
-    { id: "flux-dev", name: "FLUX Dev", type: "image" },
-    { id: "sdxl", name: "SDXL", type: "image" },
-  ],
-  huggingface: [
-    { id: "black-forest-labs/FLUX.1-schnell", name: "FLUX.1 Schnell", type: "image" },
-    { id: "stabilityai/stable-diffusion-xl-base-1.0", name: "SDXL Base 1.0", type: "image" },
-  ],
+  "huggingface-router": [],
 };
 
 // Helper functions

@@ -91,6 +91,7 @@ export const APIKEY_PROVIDERS = {
   huggingface: { id: "huggingface", alias: "hf", name: "HuggingFace", icon: "face", color: "#FFD21E", textIcon: "HF", website: "https://huggingface.co", serviceKinds: ["image", "imageToText", "tts"], hiddenKinds: ["tts"] },
   blackbox: { id: "blackbox", alias: "bb", name: "Blackbox AI", icon: "smart_toy", color: "#5B5FEF", textIcon: "BB", website: "https://blackbox.ai", serviceKinds: ["llm"] },
   chutes: { id: "chutes", alias: "ch", name: "Chutes AI", icon: "water_drop", color: "#ffffffff", textIcon: "CH", website: "https://chutes.ai" },
+  "huggingface-router": { id: "huggingface-router", alias: "hfr", name: "HuggingFace Router", icon: "face", color: "#FFD21E", textIcon: "HF", website: "https://huggingface.co", passthroughModels: true, modelsFetcher: { url: "https://router.huggingface.co/v1/models", type: "huggingface-router" }, serviceKinds: ["llm"] },
   "ollama-local": { id: "ollama-local", alias: "ollama-local", name: "Ollama Local", icon: "cloud", color: "#ffffffff", textIcon: "OL", website: "https://ollama.com" },
   "vertex-partner": { id: "vertex-partner", alias: "vxp", name: "Vertex Partner", icon: "cloud", color: "#34A853", textIcon: "VP", website: "https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models" },
   tavily: { id: "tavily", alias: "tavily", name: "Tavily", icon: "search", color: "#5B21B6", textIcon: "TV", website: "https://tavily.com", serviceKinds: ["webSearch"] },

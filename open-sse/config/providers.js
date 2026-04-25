@@ -306,6 +306,10 @@ export const PROVIDERS = {
     baseUrl: "https://llm.chutes.ai/v1/chat/completions",
     format: "openai"
   },
+  "huggingface-router": {
+    baseUrl: "https://router.huggingface.co/v1/chat/completions",
+    format: "openai"
+  },
   ollama: {
     baseUrl: "https://ollama.com/api/chat",
     format: "ollama"

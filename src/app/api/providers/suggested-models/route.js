@@ -18,6 +18,10 @@ const FILTERS = {
     models
       .filter((m) => m.id?.endsWith("-free"))
       .map((m) => ({ id: m.id, name: m.id })),
+
+  "huggingface-router": (models) =>
+    models
+      .map((m) => ({ id: m.id, name: m.id })),
 };
 
 export async function GET(request) {
