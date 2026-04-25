@@ -37,8 +37,10 @@ export default function ProviderDetailPage() {
   const [headerImgError, setHeaderImgError] = useState(false);
   const [modelTestResults, setModelTestResults] = useState({});
   const [modelsTestError, setModelsTestError] = useState("");
-  const [testingModelId, setTestingModelId] = useState(null);
-  const [showAddCustomModel, setShowAddCustomModel] = useState(false);
+const [testingModelId, setTestingModelId] = useState(null);
+const [testingAllConnections, setTestingAllConnections] = useState(false);
+const [connectionTestResults, setConnectionTestResults] = useState({});
+const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
@@ -362,26 +364,47 @@ export default function ProviderDetailPage() {
   const handleSaveApiKey = async (formData) => {
     setAddConnectionError("");
     try {
-      const res = await fetch("/api/providers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: providerId, ...formData }),
-      });
-
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
-
-      if (res.ok) {
+      if (formData.keys && Array.isArray(formData.keys)) {
+        const { keys, ...sharedData } = formData;
+        const failedKeys = [];
+        for (const key of keys) {
+          const res = await fetch("/api/providers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ provider: providerId, ...sharedData, name: key.name, apiKey: key.apiKey }),
+          });
+          if (!res.ok) {
+            failedKeys.push(key.name);
+          }
+        }
         await fetchConnections();
-        setShowAddApiKeyModal(false);
-        return;
-      }
+        if (failedKeys.length === 0) {
+          setShowAddApiKeyModal(false);
+        } else {
+          alert("Failed to save the following keys: " + failedKeys.join(", "));
+        }
+      } else {
+        const res = await fetch("/api/providers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider: providerId, ...formData }),
+        });
 
-      setAddConnectionError(data?.error || "Failed to save connection");
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+
+        if (res.ok) {
+          await fetchConnections();
+          setShowAddApiKeyModal(false);
+          return;
+        }
+
+        setAddConnectionError(data?.error || "Failed to save connection");
+      }
     } catch (error) {
       console.log("Error saving connection:", error);
       setAddConnectionError("Failed to save connection");
@@ -554,6 +577,7 @@ export default function ProviderDetailPage() {
                 isOAuth={isOAuth}
                 isFirst={index === 0}
                 isLast={index === connections.length - 1}
+                testStatus={connectionTestResults[conn.id]}
                 onMoveUp={() => handleSwapPriority(index, index - 1)}
                 onMoveDown={() => handleSwapPriority(index, index + 1)}
                 onToggleActive={(isActive) => handleUpdateConnectionStatus(conn.id, isActive)}
@@ -658,7 +682,33 @@ export default function ProviderDetailPage() {
     }
   };
 
-  const renderModelsSection = () => {
+  const handleTestAllConnections = async () => {
+    if (testingAllConnections || connections.length === 0) return;
+    setTestingAllConnections(true);
+    setConnectionTestResults({});
+    try {
+      const results = {};
+      await Promise.all(
+        connections.map(async (conn) => {
+          try {
+            const res = await fetch("/api/providers/" + conn.id + "/test", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            });
+            const data = await res.json();
+            results[conn.id] = data.valid ? "ok" : "error";
+          } catch {
+            results[conn.id] = "error";
+          }
+        }),
+      );
+      setConnectionTestResults(results);
+    } finally {
+      setTestingAllConnections(false);
+    }
+  };
+
+const renderModelsSection = () => {
     if (isCompatible) {
       return (
         <CompatibleModelsSection
@@ -987,6 +1037,18 @@ export default function ProviderDetailPage() {
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-lg font-semibold">Connections</h2>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              {/* Test All Connections button */}
+              {connections.length > 0 && !isFreeNoAuth && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={testingAllConnections ? undefined : "cable"}
+                  onClick={handleTestAllConnections}
+                  disabled={testingAllConnections}
+                >
+                  {testingAllConnections ? "Testing..." : "Test All"}
+                </Button>
+              )}
               {connections.length > 0 && proxyPools.length > 0 && (
                 <Button
                   size="sm"
