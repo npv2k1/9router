@@ -187,6 +187,34 @@ export function getProvidersByKind(kind) {
   });
 }
 
+// Synchronous version for client-side use (requires passing nodes from API)
+// Combines hardcoded providers with custom nodes filtered by service kind
+export function getAllProvidersByKindSync(kind, nodes = []) {
+  // Start with hardcoded providers filtered by kind
+  const hardcoded = getProvidersByKind(kind);
+
+  // Add custom nodes that support this kind
+  const customProviders = nodes
+    .filter((node) => {
+      const kinds = node.serviceKinds ?? ["llm"];
+      return kinds.includes(kind);
+    })
+    .map((node) => ({
+      id: node.id,
+      alias: node.prefix,
+      name: node.name,
+      color: "#6B7280", // Default gray for custom nodes
+      textIcon: node.prefix?.slice(0, 2).toUpperCase() || "C",
+      isCustom: true,
+      nodeType: node.type,
+      apiType: node.apiType,
+      baseUrl: node.baseUrl,
+      serviceKinds: node.serviceKinds,
+    }));
+
+  return [...hardcoded, ...customProviders];
+}
+
 // Providers that support usage/quota API
 export const USAGE_SUPPORTED_PROVIDERS = [
   "claude",

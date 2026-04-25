@@ -245,6 +245,7 @@ export async function createProviderNode(data) {
     prefix: data.prefix,
     apiType: data.apiType,
     baseUrl: data.baseUrl,
+    serviceKinds: data.serviceKinds || ["llm"],
     createdAt: now,
     updatedAt: now,
   };
@@ -269,6 +270,26 @@ export async function updateProviderNode(id, data) {
 
   await safeWrite(db);
   return db.data.providerNodes[index];
+}
+
+// Migrate existing provider nodes to add serviceKinds if missing
+export async function migrateProviderNodesServiceKinds() {
+  const db = await getDb();
+  if (!db.data.providerNodes) return 0;
+
+  let migrated = 0;
+  for (const node of db.data.providerNodes) {
+    if (!node.serviceKinds) {
+      node.serviceKinds = ["llm"];
+      migrated++;
+    }
+  }
+
+  if (migrated > 0) {
+    await safeWrite(db);
+  }
+
+  return migrated;
 }
 
 export async function deleteProviderNode(id) {

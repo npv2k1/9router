@@ -13,6 +13,17 @@ import * as log from "../utils/logger.js";
 import { parseApiKey, extractBearerToken } from "../utils/apiKey.js";
 import { getMachineData, saveMachineData } from "../services/storage.js";
 
+const OPENAI_COMPATIBLE_PREFIX = "openai-compatible-";
+const ANTHROPIC_COMPATIBLE_PREFIX = "anthropic-compatible-";
+
+function isOpenAICompatibleProvider(providerId) {
+  return typeof providerId === "string" && providerId.startsWith(OPENAI_COMPATIBLE_PREFIX);
+}
+
+function isAnthropicCompatibleProvider(providerId) {
+  return typeof providerId === "string" && providerId.startsWith(ANTHROPIC_COMPATIBLE_PREFIX);
+}
+
 /**
  * Handle POST /v1/embeddings and /{machineId}/v1/embeddings requests.
  *
@@ -86,6 +97,16 @@ export async function handleEmbeddings(request, env, ctx, machineIdOverride = nu
   const { provider, model } = modelInfo;
   log.info("EMBEDDINGS_MODEL", `${provider.toUpperCase()} | ${model}`);
 
+  // Fetch provider node for openai-compatible or anthropic-compatible providers
+  let providerNode = null;
+  if (isOpenAICompatibleProvider(provider) || isAnthropicCompatibleProvider(provider)) {
+    const providerNodes = data?.providerNodes || [];
+    providerNode = providerNodes.find(node => node.id === provider);
+    if (providerNode) {
+      log.debug("EMBEDDINGS", `Using provider node: ${providerNode.name} (${providerNode.baseUrl})`);
+    }
+  }
+
   // Provider credential + fallback loop (mirrors handleChat)
   let excludeConnectionId = null;
   let lastError = null;
@@ -133,6 +154,7 @@ export async function handleEmbeddings(request, env, ctx, machineIdOverride = nu
       body,
       modelInfo: { provider, model },
       credentials,
+      providerNode,
       log,
       onCredentialsRefreshed: async (newCreds) => {
         await updateCredentials(machineId, credentials.id, newCreds, env);

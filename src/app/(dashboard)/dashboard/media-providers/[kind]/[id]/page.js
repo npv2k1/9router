@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Card, Badge } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
-import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProviderAlias } from "@/shared/constants/providers";
+import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProviderAlias, isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
 import { getModelsByProviderId } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import ConnectionsCard from "@/app/(dashboard)/dashboard/providers/components/ConnectionsCard";
@@ -99,8 +99,10 @@ const KIND_EXAMPLE_CONFIG = {
 function EmbeddingExampleCard({ providerId }) {
   const providerAlias = getProviderAlias(providerId);
   const embeddingModels = getModelsByProviderId(providerId).filter((m) => m.type === "embedding");
+  const isCustom = isOpenAICompatibleProvider(providerId) || isAnthropicCompatibleProvider(providerId);
 
   const [selectedModel, setSelectedModel] = useState(embeddingModels[0]?.id ?? "");
+  const [manualModel, setManualModel] = useState("");
   const [input, setInput] = useState("The quick brown fox jumps over the lazy dog");
   const [apiKey, setApiKey] = useState("");
   const [useTunnel, setUseTunnel] = useState(false);
@@ -125,7 +127,9 @@ function EmbeddingExampleCard({ providerId }) {
   }, []);
 
   const endpoint = useTunnel ? tunnelEndpoint : localEndpoint;
-  const modelFull = selectedModel ? `${providerAlias}/${selectedModel}` : "";
+  // Use manual model entry for custom providers or when no models available
+  const modelToUse = (isCustom || embeddingModels.length === 0) ? manualModel : selectedModel;
+  const modelFull = modelToUse ? `${providerAlias}/${modelToUse}` : "";
 
   const curlSnippet = `curl -X POST ${endpoint}/v1/embeddings \\
   -H "Content-Type: application/json" \\
@@ -178,15 +182,29 @@ function EmbeddingExampleCard({ providerId }) {
       <div className="flex flex-col gap-2.5">
         {/* Model */}
         <Row label="Model">
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
-          >
-            {embeddingModels.map((m) => (
-              <option key={m.id} value={m.id}>{m.name || m.id}</option>
-            ))}
-          </select>
+          {embeddingModels.length > 0 ? (
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+            >
+              {embeddingModels.map((m) => (
+                <option key={m.id} value={m.id}>{m.name || m.id}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <input
+                value={manualModel}
+                onChange={(e) => setManualModel(e.target.value)}
+                placeholder="Enter model ID (e.g., text-embedding-3-small)"
+                className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary font-mono"
+              />
+              {isCustom && (
+                <p className="text-xs text-text-muted">Custom provider: enter the embedding model ID manually.</p>
+              )}
+            </div>
+          )}
         </Row>
 
         {/* Endpoint */}
@@ -1026,13 +1044,63 @@ function GenericExampleCard({ providerId, kind }) {
 // MediaProviderDetailPage
 export default function MediaProviderDetailPage() {
   const { kind, id } = useParams();
+  const [providerNodes, setProviderNodes] = useState([]);
+  const [customProvider, setCustomProvider] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // All hooks must be called before any conditional returns
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);
-  if (!kindConfig) return notFound();
-
   const provider = AI_PROVIDERS[id];
-  if (!provider) return notFound();
+  const isCustomNode = !provider && (isOpenAICompatibleProvider(id) || isAnthropicCompatibleProvider(id));
 
-  const kinds = provider.serviceKinds ?? ["llm"];
+  useEffect(() => {
+    setLoading(true);
+    // Fetch provider nodes for custom provider lookup
+    fetch("/api/provider-nodes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        setProviderNodes(d.nodes || []);
+        // If it's a custom node, find the matching node
+        if (isCustomNode) {
+          const node = (d.nodes || []).find((n) => n.id === id);
+          if (node) {
+            setCustomProvider({
+              id: node.id,
+              name: node.name,
+              color: "#6B7280",
+              textIcon: node.prefix?.slice(0, 2).toUpperCase() || "C",
+              isCustom: true,
+              serviceKinds: node.serviceKinds || ["llm"],
+              baseUrl: node.baseUrl,
+              prefix: node.prefix,
+              apiType: node.apiType,
+              nodeType: node.type,
+            });
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [id, isCustomNode]);
+
+  // Use custom provider if applicable, otherwise use hardcoded
+  const displayProvider = customProvider || provider;
+
+  // Conditional renders after all hooks
+  if (!kindConfig) return notFound();
+  
+  // For custom nodes, wait for loading to complete before deciding
+  if (isCustomNode && loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <span className="material-symbols-outlined text-4xl text-text-muted animate-spin">progress_activity</span>
+      </div>
+    );
+  }
+  
+  if (!displayProvider) return notFound();
+
+  const kinds = displayProvider.serviceKinds ?? ["llm"];
   if (!kinds.includes(kind)) return notFound();
 
   return (
@@ -1049,18 +1117,21 @@ export default function MediaProviderDetailPage() {
 
         {/* Header */}
         <div className="flex items-center gap-4">
-          <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${provider.color}15` }}>
+          <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${displayProvider.color}15` }}>
             <ProviderIcon
-              src={`/providers/${provider.id}.png`}
-              alt={provider.name}
+              src={displayProvider.isCustom ? undefined : `/providers/${displayProvider.id}.png`}
+              alt={displayProvider.name}
               size={48}
               className="object-contain rounded-lg max-w-[48px] max-h-[48px]"
-              fallbackText={provider.textIcon || provider.id.slice(0, 2).toUpperCase()}
-              fallbackColor={provider.color}
+              fallbackText={displayProvider.textIcon || displayProvider.id.slice(0, 2).toUpperCase()}
+              fallbackColor={displayProvider.color}
             />
           </div>
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">{provider.name}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-semibold tracking-tight">{displayProvider.name}</h1>
+              {displayProvider.isCustom && <Badge variant="primary" size="sm">Custom</Badge>}
+            </div>
             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
               {kinds.map((k) => (
                 <Badge key={k} variant={k === kind ? "primary" : "default"} size="sm">
@@ -1072,8 +1143,35 @@ export default function MediaProviderDetailPage() {
         </div>
       </div>
 
+      {/* Custom Node Info */}
+      {displayProvider.isCustom && (
+        <Card>
+          <h2 className="text-lg font-semibold mb-3">Node Configuration</h2>
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-text-muted w-24">Type:</span>
+              <span className="font-mono">{displayProvider.nodeType === "openai-compatible" ? "OpenAI Compatible" : "Anthropic Compatible"}</span>
+            </div>
+            {displayProvider.apiType && (
+              <div className="flex items-center gap-2">
+                <span className="text-text-muted w-24">API Type:</span>
+                <span className="font-mono">{displayProvider.apiType}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-text-muted w-24">Base URL:</span>
+              <span className="font-mono text-xs break-all">{displayProvider.baseUrl}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-text-muted w-24">Prefix:</span>
+              <span className="font-mono">{displayProvider.prefix}</span>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Connections */}
-      {provider.noAuth ? (
+      {displayProvider.noAuth ? (
         <Card>
           <div className="flex items-center gap-3">
             <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500/10 text-green-500">

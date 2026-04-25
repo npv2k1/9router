@@ -59,8 +59,9 @@ function buildEmbeddingsBody(provider, model, input, encodingFormat) {
  * @param {string} model
  * @param {object} credentials
  * @param {string|string[]} input - used to select single vs batch endpoint for Gemini
+ * @param {object} [providerNode] - Provider node config (for openai-compatible providers)
  */
-function buildEmbeddingsUrl(provider, model, credentials, input) {
+function buildEmbeddingsUrl(provider, model, credentials, input, providerNode = null) {
   if (isGeminiProvider(provider)) {
     const apiKey = credentials.apiKey || credentials.accessToken;
     // Normalize model name for URL path
@@ -81,7 +82,10 @@ function buildEmbeddingsUrl(provider, model, credentials, input) {
     default:
       // openai-compatible providers: use their baseUrl + /embeddings
       if (provider?.startsWith?.("openai-compatible-")) {
-        const baseUrl = credentials?.providerSpecificData?.baseUrl || "https://api.openai.com/v1";
+        // Priority: 1) Node baseUrl, 2) Credentials override, 3) Default fallback
+        const baseUrl = providerNode?.baseUrl || 
+                       credentials?.providerSpecificData?.baseUrl || 
+                       "https://api.openai.com/v1";
         return `${baseUrl.replace(/\/$/, "")}/embeddings`;
       }
       // For other providers, attempt to use their base URL pattern with /embeddings path
@@ -175,6 +179,7 @@ function normalizeEmbeddingsResponse(responseBody, model, provider) {
  * @param {object} options.body - Parsed request body { model, input, encoding_format }
  * @param {object} options.modelInfo - { provider, model }
  * @param {object} options.credentials - Provider credentials
+ * @param {object} [options.providerNode] - Provider node config (for openai-compatible providers)
  * @param {object} [options.log] - Logger
  * @param {function} [options.onCredentialsRefreshed] - Called when creds are refreshed
  * @param {function} [options.onRequestSuccess] - Called on success (clear error state)
@@ -184,6 +189,7 @@ export async function handleEmbeddingsCore({
   body,
   modelInfo,
   credentials,
+  providerNode = null,
   log,
   onCredentialsRefreshed,
   onRequestSuccess
@@ -202,7 +208,7 @@ export async function handleEmbeddingsCore({
   const encodingFormat = body.encoding_format || "float";
 
   // Determine embeddings URL
-  const url = buildEmbeddingsUrl(provider, model, credentials, input);
+  const url = buildEmbeddingsUrl(provider, model, credentials, input, providerNode);
   if (!url) {
     return createErrorResult(
       HTTP_STATUS.BAD_REQUEST,
@@ -253,7 +259,7 @@ export async function handleEmbeddingsCore({
         const retryHeaders = buildEmbeddingsHeaders(provider, credentials);
         // Rebuild URL for Gemini since API key is embedded in query param
         const retryUrl = isGeminiProvider(provider)
-          ? buildEmbeddingsUrl(provider, model, credentials, input)
+          ? buildEmbeddingsUrl(provider, model, credentials, input, providerNode)
           : url;
 
         providerResponse = await fetch(retryUrl, {

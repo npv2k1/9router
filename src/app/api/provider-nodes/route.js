@@ -6,11 +6,11 @@ import { generateId } from "@/shared/utils";
 export const dynamic = "force-dynamic";
 
 const OPENAI_COMPATIBLE_DEFAULTS = {
-  baseUrl: "https://api.openai.com/v1",
+  baseUrl: "https://api.openai.com/v1"
 };
 
 const ANTHROPIC_COMPATIBLE_DEFAULTS = {
-  baseUrl: "https://api.anthropic.com/v1",
+  baseUrl: "https://api.anthropic.com/v1"
 };
 
 // GET /api/provider-nodes - List all provider nodes
@@ -28,7 +28,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, prefix, apiType, baseUrl, type } = body;
+    const { name, prefix, apiType, baseUrl, type, serviceKinds } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -41,18 +41,28 @@ export async function POST(request) {
     // Determine type
     const nodeType = type || "openai-compatible";
 
+    // Parse serviceKinds - default to ["llm", "embedding"] for openai-compatible
+    let parsedServiceKinds = ["llm"];
+    if (Array.isArray(serviceKinds) && serviceKinds.length > 0) {
+      parsedServiceKinds = serviceKinds;
+    } else if (nodeType === "openai-compatible") {
+      // Default: support both LLM and embeddings for OpenAI-compatible nodes
+      parsedServiceKinds = ["llm", "embedding"];
+    }
+
     if (nodeType === "openai-compatible") {
       if (!apiType || !["chat", "responses"].includes(apiType)) {
         return NextResponse.json({ error: "Invalid OpenAI compatible API type" }, { status: 400 });
       }
 
       const node = await createProviderNode({
-        id: `${OPENAI_COMPATIBLE_PREFIX}${apiType}-${generateId()}`,
+        id: `${name.trim()}`,
         type: "openai-compatible",
         prefix: prefix.trim(),
         apiType,
         baseUrl: (baseUrl || OPENAI_COMPATIBLE_DEFAULTS.baseUrl).trim(),
         name: name.trim(),
+        serviceKinds: parsedServiceKinds
       });
       return NextResponse.json({ node }, { status: 201 });
     }
@@ -71,6 +81,7 @@ export async function POST(request) {
         prefix: prefix.trim(),
         baseUrl: sanitizedBaseUrl,
         name: name.trim(),
+        serviceKinds: parsedServiceKinds
       });
       return NextResponse.json({ node }, { status: 201 });
     }

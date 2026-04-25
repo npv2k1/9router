@@ -4,12 +4,23 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Button, Badge, Input, Modal, Select } from "@/shared/components";
 
+const SERVICE_KINDS = [
+  { id: "llm", label: "LLM (Chat)" },
+  { id: "embedding", label: "Embedding" },
+  { id: "tts", label: "Text to Speech" },
+  { id: "image", label: "Image Generation" },
+  { id: "imageToText", label: "Image to Text" },
+  { id: "webSearch", label: "Web Search" },
+  { id: "webFetch", label: "Web Fetch" },
+];
+
 export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose, isAnthropic }) {
   const [formData, setFormData] = useState({
     name: "",
     prefix: "",
     apiType: "chat",
     baseUrl: "https://api.openai.com/v1",
+    serviceKinds: ["llm", "embedding"],
   });
   const [saving, setSaving] = useState(false);
   const [checkKey, setCheckKey] = useState("");
@@ -24,6 +35,7 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
         prefix: node.prefix || "",
         apiType: node.apiType || "chat",
         baseUrl: node.baseUrl || (isAnthropic ? "https://api.anthropic.com/v1" : "https://api.openai.com/v1"),
+        serviceKinds: node.serviceKinds || ["llm", "embedding"],
       });
     }
   }, [node, isAnthropic]);
@@ -33,6 +45,15 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
     { value: "responses", label: "Responses API" },
   ];
 
+  const handleServiceKindToggle = (kindId) => {
+    setFormData((prev) => {
+      const newKinds = prev.serviceKinds.includes(kindId)
+        ? prev.serviceKinds.filter((k) => k !== kindId)
+        : [...prev.serviceKinds, kindId];
+      return { ...prev, serviceKinds: newKinds };
+    });
+  };
+
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.prefix.trim() || !formData.baseUrl.trim()) return;
     setSaving(true);
@@ -41,6 +62,7 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
         name: formData.name,
         prefix: formData.prefix,
         baseUrl: formData.baseUrl,
+        serviceKinds: formData.serviceKinds,
       };
       if (!isAnthropic) {
         payload.apiType = formData.apiType;
@@ -107,6 +129,27 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
           placeholder={isAnthropic ? "https://api.anthropic.com/v1" : "https://api.openai.com/v1"}
           hint={`Use the base URL (ending in /v1) for your ${isAnthropic ? "Anthropic" : "OpenAI"}-compatible API.`}
         />
+        {/* Service Kinds */}
+        <div>
+          <label className="block text-sm font-medium mb-1.5">Supported Services</label>
+          <div className="flex flex-wrap gap-2">
+            {SERVICE_KINDS.map((kind) => (
+              <button
+                key={kind.id}
+                type="button"
+                onClick={() => handleServiceKindToggle(kind.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                  formData.serviceKinds.includes(kind.id)
+                    ? "bg-primary/15 border-primary/40 text-primary font-medium"
+                    : "border-border text-text-muted hover:text-primary hover:border-primary/40"
+                }`}
+              >
+                {kind.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-text-muted mt-1">Select which services this node supports.</p>
+        </div>
         <div className="flex gap-2">
           <Input
             label="API Key (for Check)"
@@ -154,6 +197,7 @@ EditCompatibleNodeModal.propTypes = {
     prefix: PropTypes.string,
     apiType: PropTypes.string,
     baseUrl: PropTypes.string,
+    serviceKinds: PropTypes.arrayOf(PropTypes.string),
   }),
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
