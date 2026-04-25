@@ -594,28 +594,30 @@ const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   };
 
   const handleTestAllConnections = async () => {
-  if (testingAllConnections || connections.length === 0) return;
-  setTestingAllConnections(true);
-  setConnectionTestResults({});
-  try {
-    const results = {};
-    for (const conn of connections) {
-      try {
-        const res = await fetch(`/api/providers/${conn.id}/test`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        const data = await res.json();
-        results[conn.id] = data.valid ? "ok" : "error";
-      } catch {
-        results[conn.id] = "error";
-      }
+    if (testingAllConnections || connections.length === 0) return;
+    setTestingAllConnections(true);
+    setConnectionTestResults({});
+    try {
+      const results = {};
+      await Promise.all(
+        connections.map(async (conn) => {
+          try {
+            const res = await fetch("/api/providers/" + conn.id + "/test", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            });
+            const data = await res.json();
+            results[conn.id] = data.valid ? "ok" : "error";
+          } catch {
+            results[conn.id] = "error";
+          }
+        }),
+      );
+      setConnectionTestResults(results);
+    } finally {
+      setTestingAllConnections(false);
     }
-    setConnectionTestResults(results);
-  } finally {
-    setTestingAllConnections(false);
-  }
-};
+  };
 
 const renderModelsSection = () => {
     if (isCompatible) {
