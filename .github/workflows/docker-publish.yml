@@ -17,6 +17,9 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: pnstack/actions/docker-publish@main
         with:
