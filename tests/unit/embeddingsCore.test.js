@@ -177,7 +177,20 @@ describe("buildEmbeddingsUrl", () => {
     expect(url).toBe("https://openrouter.ai/api/v1/embeddings");
   });
 
-  it("openai-compatible-* → uses baseUrl from providerSpecificData", async () => {
+  it("openai-compatible-* → uses baseUrl from providerNode (priority 1)", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
+
+    await handleEmbeddingsCore(makeOptions({
+      modelInfo: { provider: "openai-compatible-custom", model: "embed-v1" },
+      credentials: { apiKey: "sk-custom" },
+      providerNode: { id: "openai-compatible-custom", baseUrl: "https://node.ai/v1" },
+    }));
+
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("https://node.ai/v1/embeddings");
+  });
+
+  it("openai-compatible-* → uses baseUrl from providerSpecificData when no node (priority 2)", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
     await handleEmbeddingsCore(makeOptions({
@@ -192,7 +205,36 @@ describe("buildEmbeddingsUrl", () => {
     expect(url).toBe("https://custom.ai/v1/embeddings");
   });
 
-  it("openai-compatible-* strips trailing slash from baseUrl", async () => {
+  it("openai-compatible-* → providerNode baseUrl overrides credentials baseUrl", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
+
+    await handleEmbeddingsCore(makeOptions({
+      modelInfo: { provider: "openai-compatible-custom", model: "embed-v1" },
+      credentials: {
+        apiKey: "sk-custom",
+        providerSpecificData: { baseUrl: "https://credentials.ai/v1" },
+      },
+      providerNode: { id: "openai-compatible-custom", baseUrl: "https://node.ai/v1" },
+    }));
+
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("https://node.ai/v1/embeddings");
+  });
+
+  it("openai-compatible-* strips trailing slash from node baseUrl", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
+
+    await handleEmbeddingsCore(makeOptions({
+      modelInfo: { provider: "openai-compatible-myhost", model: "embed-v1" },
+      credentials: { apiKey: "sk-x" },
+      providerNode: { id: "openai-compatible-myhost", baseUrl: "https://myhost.ai/v1/" },
+    }));
+
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toBe("https://myhost.ai/v1/embeddings");
+  });
+
+  it("openai-compatible-* strips trailing slash from credentials baseUrl", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
     await handleEmbeddingsCore(makeOptions({

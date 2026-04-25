@@ -5,13 +5,14 @@ import {
   extractApiKey,
   isValidApiKey,
 } from "../services/auth.js";
-import { getSettings } from "@/lib/localDb";
+import { getSettings, getProviderNodeById } from "@/lib/localDb";
 import { getModelInfo } from "../services/model.js";
 import { handleEmbeddingsCore } from "open-sse/handlers/embeddingsCore.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
+import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
 
 /**
  * Handle embeddings request for the SSE/Next.js server.
@@ -79,6 +80,17 @@ export async function handleEmbeddings(request) {
     log.info("ROUTING", `Provider: ${provider}, Model: ${model}`);
   }
 
+  console.log('start handleEmbeddings', { provider, model });
+
+  // Fetch provider node for openai-compatible or anthropic-compatible providers
+  let providerNode = null;
+  if (isOpenAICompatibleProvider(provider) || isAnthropicCompatibleProvider(provider)) {
+    providerNode = await getProviderNodeById(provider);
+    if (providerNode) {
+      log.debug("EMBEDDINGS", `Using provider node: ${providerNode.name} (${providerNode.baseUrl})`);
+    }
+  }
+
   // Credential + fallback loop (mirrors handleChat)
   const excludeConnectionIds = new Set();
   let lastError = null;
@@ -111,6 +123,7 @@ export async function handleEmbeddings(request) {
       body: { ...body, model: `${provider}/${model}` },
       modelInfo: { provider, model },
       credentials: refreshedCredentials,
+      providerNode,
       log,
       onCredentialsRefreshed: async (newCreds) => {
         await updateProviderCredentials(credentials.connectionId, {

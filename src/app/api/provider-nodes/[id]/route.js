@@ -6,7 +6,7 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, prefix, apiType, baseUrl } = body;
+    const { name, prefix, apiType, baseUrl, serviceKinds } = body;
     const node = await getProviderNodeById(id);
 
     if (!node) {
@@ -48,6 +48,11 @@ export async function PUT(request, { params }) {
 
     if (node.type === "openai-compatible") {
       updates.apiType = apiType;
+    }
+
+    // Update serviceKinds if provided
+    if (Array.isArray(serviceKinds) && serviceKinds.length > 0) {
+      updates.serviceKinds = serviceKinds;
     }
 
     const updated = await updateProviderNode(id, updates);

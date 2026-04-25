@@ -3,9 +3,10 @@
 import { useParams, notFound } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Card, Badge } from "@/shared/components";
+import { Card, Badge, Button } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
-import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProvidersByKind } from "@/shared/constants/providers";
+import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS, getProvidersByKind, getAllProvidersByKindSync } from "@/shared/constants/providers";
+import AddCustomProviderModal from "../AddCustomProviderModal";
 
 function getEffectiveStatus(conn) {
   const isCooldown = Object.entries(conn).some(
@@ -17,6 +18,7 @@ function getEffectiveStatus(conn) {
 function MediaProviderCard({ provider, kind, connections }) {
   const providerInfo = AI_PROVIDERS[provider.id];
   const isNoAuth = !!providerInfo?.noAuth;
+  const isCustom = !!provider.isCustom;
 
   const providerConns = connections.filter((c) => c.provider === provider.id);
   const connected = providerConns.filter((c) => { const s = getEffectiveStatus(c); return s === "active" || s === "success"; }).length;
@@ -49,7 +51,7 @@ function MediaProviderCard({ provider, kind, connections }) {
             style={{ backgroundColor: `${provider.color?.length > 7 ? provider.color : (provider.color ?? "#888") + "15"}` }}
           >
             <ProviderIcon
-              src={`/providers/${provider.id}.png`}
+              src={provider.isCustom ? undefined : `/providers/${provider.id}.png`}
               alt={provider.name}
               size={30}
               className="object-contain rounded-lg max-w-[30px] max-h-[30px]"
@@ -57,8 +59,11 @@ function MediaProviderCard({ provider, kind, connections }) {
               fallbackColor={provider.color}
             />
           </div>
-          <div>
-            <h3 className="font-semibold text-sm">{provider.name}</h3>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-sm truncate">{provider.name}</h3>
+              {isCustom && <Badge variant="primary" size="sm">Custom</Badge>}
+            </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               {renderStatus()}
             </div>
@@ -72,21 +77,50 @@ function MediaProviderCard({ provider, kind, connections }) {
 export default function MediaProviderKindPage() {
   const { kind } = useParams();
   const [connections, setConnections] = useState([]);
+  const [providerNodes, setProviderNodes] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kind);
-  if (!kindConfig) return notFound();
 
-  const providers = getProvidersByKind(kind);
+  // Combine hardcoded providers with custom nodes
+  const providers = getAllProvidersByKindSync(kind, providerNodes);
 
   useEffect(() => {
+    // Fetch connections
     fetch("/api/providers", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setConnections(d.connections || []))
       .catch(() => {});
+
+    // Fetch provider nodes
+    fetch("/api/provider-nodes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setProviderNodes(d.nodes || []))
+      .catch(() => {});
   }, []);
+
+  const handleCreated = (node) => {
+    setProviderNodes((prev) => [...prev, node]);
+    setShowAddModal(false);
+  };
+
+  // Early return after all hooks
+  if (!kindConfig) return notFound();
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Header with Add button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">{kindConfig.label} Providers</h2>
+        <Button
+          size="sm"
+          icon="add"
+          onClick={() => setShowAddModal(true)}
+        >
+          Add Custom Provider
+        </Button>
+      </div>
+
       {providers.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-border rounded-xl text-text-muted text-sm">
           No providers support <strong>{kindConfig.label}</strong> yet.
@@ -103,6 +137,13 @@ export default function MediaProviderKindPage() {
           ))}
         </div>
       )}
+
+      <AddCustomProviderModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onCreated={handleCreated}
+        defaultKind={kind}
+      />
     </div>
   );
 }
