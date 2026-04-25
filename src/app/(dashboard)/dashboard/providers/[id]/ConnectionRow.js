@@ -5,7 +5,7 @@ import PropTypes from "prop-types";
 import { Badge, Toggle } from "@/shared/components";
 import CooldownTimer from "./CooldownTimer";
 
-export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete }) {
+export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, testStatus: propTestStatus, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete }) {
   const [showProxyDropdown, setShowProxyDropdown] = useState(false);
   const [updatingProxy, setUpdatingProxy] = useState(false);
   const proxyDropdownRef = useRef(null);
@@ -96,14 +96,17 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
     };
   }, [modelLockUntil]);
 
+  // Use prop testStatus (from bulk test) if provided, otherwise use connection.testStatus
+  const actualTestStatus = propTestStatus || connection.testStatus;
+
   // Determine effective status (override unavailable if cooldown expired)
-  const effectiveStatus = (connection.testStatus === "unavailable" && !isCooldown)
-    ? "active"  // Cooldown expired u2192 treat as active
-    : connection.testStatus;
+  const effectiveStatus = (actualTestStatus === "unavailable" && !isCooldown)
+    ? "active"  // Cooldown expired → treat as active
+    : actualTestStatus;
 
   const getStatusVariant = () => {
     if (connection.isActive === false) return "default";
-    if (effectiveStatus === "active" || effectiveStatus === "success") return "success";
+    if (effectiveStatus === "active" || effectiveStatus === "success" || effectiveStatus === "ok") return "success";
     if (effectiveStatus === "error" || effectiveStatus === "expired" || effectiveStatus === "unavailable") return "error";
     return "default";
   };
@@ -251,6 +254,7 @@ ConnectionRow.propTypes = {
   isOAuth: PropTypes.bool.isRequired,
   isFirst: PropTypes.bool.isRequired,
   isLast: PropTypes.bool.isRequired,
+  testStatus: PropTypes.string,
   onMoveUp: PropTypes.func.isRequired,
   onMoveDown: PropTypes.func.isRequired,
   onToggleActive: PropTypes.func.isRequired,
