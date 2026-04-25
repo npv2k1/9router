@@ -321,7 +321,7 @@ const [showAddCustomModel, setShowAddCustomModel] = useState(false);
         if (failedKeys.length === 0) {
           setShowAddApiKeyModal(false);
         } else {
-          console.log("Failed to save keys:", failedKeys);
+          alert("Failed to save the following keys: " + failedKeys.join(", "));
         }
       } else {
         const res = await fetch("/api/providers", {
