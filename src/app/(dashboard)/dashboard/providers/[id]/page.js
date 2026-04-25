@@ -36,8 +36,10 @@ export default function ProviderDetailPage() {
   const [headerImgError, setHeaderImgError] = useState(false);
   const [modelTestResults, setModelTestResults] = useState({});
   const [modelsTestError, setModelsTestError] = useState("");
-  const [testingModelId, setTestingModelId] = useState(null);
-  const [showAddCustomModel, setShowAddCustomModel] = useState(false);
+const [testingModelId, setTestingModelId] = useState(null);
+const [testingAllConnections, setTestingAllConnections] = useState(false);
+const [connectionTestResults, setConnectionTestResults] = useState({});
+const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
@@ -496,6 +498,7 @@ export default function ProviderDetailPage() {
                 isOAuth={isOAuth}
                 isFirst={index === 0}
                 isLast={index === connections.length - 1}
+                testStatus={connectionTestResults[conn.id]}
                 onMoveUp={() => handleSwapPriority(index, index - 1)}
                 onMoveDown={() => handleSwapPriority(index, index + 1)}
                 onToggleActive={(isActive) => handleUpdateConnectionStatus(conn.id, isActive)}
@@ -590,7 +593,33 @@ export default function ProviderDetailPage() {
     }
   };
 
-  const renderModelsSection = () => {
+  const handleTestAllConnections = async () => {
+    if (testingAllConnections || connections.length === 0) return;
+    setTestingAllConnections(true);
+    setConnectionTestResults({});
+    try {
+      const results = {};
+      await Promise.all(
+        connections.map(async (conn) => {
+          try {
+            const res = await fetch("/api/providers/" + conn.id + "/test", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+            });
+            const data = await res.json();
+            results[conn.id] = data.valid ? "ok" : "error";
+          } catch {
+            results[conn.id] = "error";
+          }
+        }),
+      );
+      setConnectionTestResults(results);
+    } finally {
+      setTestingAllConnections(false);
+    }
+  };
+
+const renderModelsSection = () => {
     if (isCompatible) {
       return (
         <CompatibleModelsSection
@@ -886,6 +915,18 @@ export default function ProviderDetailPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Connections</h2>
             <div className="flex items-center gap-4">
+              {/* Test All Connections button */}
+              {connections.length > 0 && !isFreeNoAuth && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={testingAllConnections ? undefined : "cable"}
+                  onClick={handleTestAllConnections}
+                  disabled={testingAllConnections}
+                >
+                  {testingAllConnections ? "Testing..." : "Test All"}
+                </Button>
+              )}
               {/* Thinking config */}
               {/* {thinkingConfig && (
                 <div className="flex items-center gap-2">
