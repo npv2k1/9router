@@ -198,7 +198,6 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
                 </div>
               </div>
             )}
-            )}
             {!isOllamaLocal && (
               <div className="flex gap-2">
                 <Input
@@ -293,7 +292,6 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
               </div>
             )}
           </>
-        )}
         )}
 
         <Input
